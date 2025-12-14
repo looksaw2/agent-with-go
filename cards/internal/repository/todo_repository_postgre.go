@@ -183,7 +183,34 @@ func(r *PostgresRepository)UpdateTodo(ctx context.Context ,id int, updates map[s
 		slog.Info("update Todo failed","Error",err)
 		return err
 	}
-		if err = tx.Commit(ctx); err != nil {
+	if err = tx.Commit(ctx); err != nil {
+		slog.Info("Commit Todo","failed",err)
+		return err
+	}
+	return nil
+}
+
+
+func(r *PostgresRepository)DeleteTodo(ctx context.Context,id int) error{
+	tx ,err := r.conn.Begin(ctx)
+		if err != nil {
+		slog.Info("Start Transcation failed.....","Error",err)
+		return err
+	}
+	defer func(){
+		if rollBackErr := tx.Rollback(ctx); rollBackErr != nil {
+			if ! errors.Is(rollBackErr,pgx.ErrTxClosed) && ! strings.Contains(rollBackErr.Error(),"transaction already committed"){
+				slog.Info("事物回滚失败","Error",rollBackErr)
+			}
+		}
+	}()
+	qtx := r.q.WithTx(tx)
+	err = qtx.DeleteTodo(ctx,int64(id))
+	if err != nil {
+		slog.Info("delete Todo failed","Error",err)
+		return err
+	}
+	if err = tx.Commit(ctx); err != nil {
 		slog.Info("Commit Todo","failed",err)
 		return err
 	}
